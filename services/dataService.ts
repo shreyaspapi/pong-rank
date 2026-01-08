@@ -164,8 +164,90 @@ export const logMatch = async (
   return newMatch;
 };
 
-// Delete a match by ID
+// Soft delete a match by ID (marks as deleted, doesn't remove)
 export const deleteMatch = async (matchId: string): Promise<void> => {
+  // For now, hard delete - can change to soft delete later
   await apiCall({ action: 'deleteMatch', matchId });
   cachedMatches = cachedMatches.filter(m => m.id !== matchId);
+};
+
+// Recalculate all player stats from match history
+// Use this after deleting matches to fix stats
+export const recalculateAllStats = async (): Promise<void> => {
+  // 1. Reset all players to base stats
+  const resetPlayers = cachedPlayers.map(p => ({
+    ...p,
+    elo: 1200,
+    wins: 0,
+    losses: 0,
+  }));
+
+  // 2. Create a map for easy lookup
+  const playerMap = new Map<string, Player>();
+  resetPlayers.forEach(p => playerMap.set(p.id, { ...p }));
+
+  // 3. Sort matches by ID (assuming IDs are timestamp-based, oldest first)
+  const sortedMatches = [...cachedMatches].sort((a, b) => {
+    const idA = typeof a.id === 'string' ? a.id : String(a.id);
+    const idB = typeof b.id === 'string' ? b.id : String(b.id);
+    return idA.localeCompare(idB);
+  });
+
+  // 4. Replay each match
+  for (const match of sortedMatches) {
+    // Determine winners and losers (handle both formats)
+    let winnerIds: string[] = [];
+    let loserIds: string[] = [];
+
+    if (match.winnerIds?.length && match.loserIds?.length) {
+      winnerIds = match.winnerIds.map(String);
+      loserIds = match.loserIds.map(String);
+    } else if (match.teamAIds?.length && match.teamBIds?.length) {
+      const teamA = match.teamAIds.map(String);
+      const teamB = match.teamBIds.map(String);
+      if (match.winnerTeam === 'A') {
+        winnerIds = teamA;
+        loserIds = teamB;
+      } else {
+        winnerIds = teamB;
+        loserIds = teamA;
+      }
+    } else {
+      continue; // Skip invalid matches
+    }
+
+    // Get current elos
+    const winners = winnerIds.map(id => playerMap.get(id)).filter(Boolean) as Player[];
+    const losers = loserIds.map(id => playerMap.get(id)).filter(Boolean) as Player[];
+
+    if (winners.length === 0 || losers.length === 0) continue;
+
+    // Calculate elo change
+    const winnerElos = winners.map(p => p.elo);
+    const loserElos = losers.map(p => p.elo);
+    const eloChange = calculateEloChange(winnerElos, loserElos);
+
+    // Update players
+    winnerIds.forEach(id => {
+      const p = playerMap.get(id);
+      if (p) {
+        p.elo += eloChange;
+        p.wins += 1;
+      }
+    });
+    loserIds.forEach(id => {
+      const p = playerMap.get(id);
+      if (p) {
+        p.elo -= eloChange;
+        p.losses += 1;
+      }
+    });
+  }
+
+  // 5. Update all players in backend
+  const updatedPlayers = Array.from(playerMap.values());
+  await updatePlayers(updatedPlayers);
+
+  // 6. Update local cache
+  cachedPlayers = updatedPlayers;
 };
