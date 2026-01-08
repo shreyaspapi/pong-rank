@@ -24,9 +24,12 @@ export const MatchHistory: React.FC<MatchHistoryProps> = ({ matches, players }) 
     );
   }
 
+  // Reverse to show newest matches first
+  const sortedMatches = [...matches].reverse();
+
   return (
     <div className="flex flex-col gap-4 pb-4">
-      {matches.map((match) => {
+      {sortedMatches.map((match) => {
         // Handle date - could be empty string or invalid
         let dateStr = 'No date';
         if (match.date) {
