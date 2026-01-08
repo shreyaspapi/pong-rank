@@ -1,5 +1,5 @@
 // PongRank Google Apps Script Backend
-// Version 2.0 - Supports individual operations (add/delete) instead of full replacement
+// Version 2.1 - Added custom menu with Recalculate Stats
 //
 // Setup:
 // 1. Open your Google Sheet
@@ -9,6 +9,18 @@
 // 5. Execute as: "Me"
 // 6. Who has access: "Anyone"
 // 7. Copy the deployment URL and use it as VITE_API_URL
+//
+// Custom Menu:
+// After setup, refresh the sheet to see "PongRank" menu
+// Use "Recalculate All Stats" after deleting matches to fix player stats
+
+// ============ Custom Menu ============
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('PongRank')
+    .addItem('Recalculate All Stats', 'recalculateAllStats')
+    .addToUi();
+}
 
 // ============ GET - Read Data ============
 function doGet(e) {
@@ -233,4 +245,103 @@ function parseData(values) {
 function jsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ============ Recalculate Stats (Menu Action) ============
+// Use this after deleting matches to fix player Elo/wins/losses
+function recalculateAllStats() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const pSheet = getOrCreateSheet(ss, 'Players');
+  const mSheet = getOrCreateSheet(ss, 'Matches');
+
+  // Read all players and matches
+  const pData = pSheet.getDataRange().getValues();
+  const mData = mSheet.getDataRange().getValues();
+
+  if (pData.length <= 1) {
+    SpreadsheetApp.getUi().alert('No players found!');
+    return;
+  }
+
+  const pHeaders = pData[0];
+  const players = parseData(pData);
+
+  // Reset all players to base stats
+  players.forEach(p => {
+    p.elo = 1200;
+    p.wins = 0;
+    p.losses = 0;
+  });
+
+  // Create lookup map
+  const playerMap = new Map();
+  players.forEach(p => playerMap.set(String(p.id), p));
+
+  // Parse and sort matches by date/id (oldest first)
+  const matches = mData.length > 1 ? parseData(mData) : [];
+  matches.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+  // Replay each match
+  for (const match of matches) {
+    // Determine winners/losers (handle both formats)
+    let winnerIds = [];
+    let loserIds = [];
+
+    if (match.winnerIds && match.winnerIds.length && match.loserIds && match.loserIds.length) {
+      winnerIds = match.winnerIds.map(String);
+      loserIds = match.loserIds.map(String);
+    } else if (match.teamAIds && match.teamAIds.length && match.teamBIds && match.teamBIds.length) {
+      const teamA = match.teamAIds.map(String);
+      const teamB = match.teamBIds.map(String);
+      if (match.winnerTeam === 'A') {
+        winnerIds = teamA;
+        loserIds = teamB;
+      } else {
+        winnerIds = teamB;
+        loserIds = teamA;
+      }
+    } else {
+      continue; // Skip invalid match
+    }
+
+    // Get players
+    const winners = winnerIds.map(id => playerMap.get(id)).filter(Boolean);
+    const losers = loserIds.map(id => playerMap.get(id)).filter(Boolean);
+    if (!winners.length || !losers.length) continue;
+
+    // Calculate Elo change
+    const avgWinnerElo = winners.reduce((s, p) => s + p.elo, 0) / winners.length;
+    const avgLoserElo = losers.reduce((s, p) => s + p.elo, 0) / losers.length;
+    const expectedWin = 1 / (1 + Math.pow(10, (avgLoserElo - avgWinnerElo) / 400));
+    const eloChange = Math.round(32 * (1 - expectedWin));
+
+    // Apply changes
+    winnerIds.forEach(id => {
+      const p = playerMap.get(id);
+      if (p) {
+        p.elo += eloChange;
+        p.wins++;
+      }
+    });
+    loserIds.forEach(id => {
+      const p = playerMap.get(id);
+      if (p) {
+        p.elo -= eloChange;
+        p.losses++;
+      }
+    });
+  }
+
+  // Write updated players back to sheet
+  const updatedPlayers = Array.from(playerMap.values());
+  const rows = [pHeaders, ...updatedPlayers.map(p =>
+    pHeaders.map(h => {
+      const val = p[h];
+      return (typeof val === 'object') ? JSON.stringify(val) : val;
+    })
+  )];
+  pSheet.clear();
+  pSheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+
+  SpreadsheetApp.getUi().alert('Stats recalculated for ' + updatedPlayers.length + ' players from ' + matches.length + ' matches!');
 }
