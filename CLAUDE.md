@@ -45,6 +45,25 @@ React App → dataService.ts → Google Apps Script API → Google Sheets
 
 Set `VITE_API_URL` to your Google Apps Script deployment URL. Users can also set the API URL at runtime via localStorage.
 
+## Backend (Google Apps Script)
+
+The backend lives in `backend/appscript.js`. To deploy changes:
+
+1. Open the Google Apps Script editor for the project
+2. Copy/paste the contents of `backend/appscript.js`
+3. Deploy as web app (Execute as: Me, Access: Anyone)
+
+### Google Sheets Menu
+
+The script adds a **PongRank** menu to Google Sheets with:
+
+- **Recalculate All Stats** - Rebuilds all player ELO/wins/losses from match history. Use when stats get out of sync.
+- **Migrate to New Format** - Converts old match format (teamAIds/teamBIds/winnerTeam) to new format (winnerIds/loserIds/score/eloChange).
+
 ## Deployment
 
 GitHub Pages via `.github/workflows/deploy.yml`. Pushes to `main` trigger automatic deployment.
+
+## Contributing
+
+Repo is public at https://github.com/phuaky/pong-rank - PRs welcome!
