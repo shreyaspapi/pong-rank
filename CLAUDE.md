@@ -41,6 +41,33 @@ React App → dataService.ts → Google Apps Script API → Google Sheets
 
 **Match**: id, date, type (SINGLES/DOUBLES), winnerIds[], loserIds[], score, eloChange
 
+### Google Sheets Schema
+
+The backend uses two sheets in Google Sheets:
+
+**Players Sheet**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | string | UUID |
+| name | string | Player display name |
+| elo | number | ELO rating (starts at 1200) |
+| wins | number | Total wins |
+| losses | number | Total losses |
+| createdAt | string | ISO timestamp |
+
+**Matches Sheet**
+| Column | Type | Description |
+|--------|------|-------------|
+| id | string | UUID |
+| date | string | ISO timestamp |
+| type | string | "SINGLES" or "DOUBLES" |
+| winnerIds | JSON | Array of winner player IDs, e.g. `["id1"]` or `["id1","id2"]` |
+| loserIds | JSON | Array of loser player IDs |
+| score | string | Score like "11-8" (winner-loser). Prefixed with `'` to prevent Sheets date interpretation |
+| eloChange | number | ELO points exchanged |
+
+**Note**: Scores like "11-8" get interpreted as dates by Google Sheets. The backend prefixes them with `'` when writing and handles Date objects when reading.
+
 ### Environment
 
 Set `VITE_API_URL` to your Google Apps Script deployment URL. Users can also set the API URL at runtime via localStorage.
