@@ -116,7 +116,7 @@ export const LogMatch: React.FC<LogMatchProps> = ({ players, onMatchLogged, onCa
   // STEP 2: Select Players
   if (step === 2) {
     return (
-      <div className="flex flex-col h-full pb-20">
+      <div className="flex flex-col h-full pb-20 overflow-hidden">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Who played?</h2>
         
         {error && (
@@ -126,7 +126,7 @@ export const LogMatch: React.FC<LogMatchProps> = ({ players, onMatchLogged, onCa
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto no-scrollbar space-y-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 min-h-0">
           {/* Winners Section */}
           <div>
             <div className="flex items-center gap-2 mb-3 text-emerald-700 font-medium">

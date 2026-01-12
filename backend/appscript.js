@@ -77,11 +77,24 @@ function handleAddPlayer(ss, player) {
   const sheet = getOrCreateSheet(ss, 'Players');
   const data = sheet.getDataRange().getValues();
 
-  // Get or create headers
-  let headers = data.length > 0 ? data[0] : Object.keys(player);
-  if (data.length === 0) {
+  // Get existing headers or create from player
+  let headers = data.length > 0 ? data[0] : [];
+
+  // If sheet is empty, use player keys as headers
+  if (headers.length === 0 || (headers.length === 1 && headers[0] === '')) {
     headers = Object.keys(player);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  } else {
+    // Find new fields in player that aren't in existing headers
+    const playerKeys = Object.keys(player);
+    const newHeaders = playerKeys.filter(k => !headers.includes(k));
+
+    // Add new headers if any
+    if (newHeaders.length > 0) {
+      headers = [...headers, ...newHeaders];
+      // Update header row with new columns
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
   }
 
   // Append new row
@@ -100,11 +113,24 @@ function handleAddMatch(ss, match) {
   const sheet = getOrCreateSheet(ss, 'Matches');
   const data = sheet.getDataRange().getValues();
 
-  // Get or create headers
-  let headers = data.length > 0 ? data[0] : Object.keys(match);
-  if (data.length === 0) {
+  // Get existing headers or create from match
+  let headers = data.length > 0 ? data[0] : [];
+
+  // If sheet is empty, use match keys as headers
+  if (headers.length === 0 || (headers.length === 1 && headers[0] === '')) {
     headers = Object.keys(match);
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  } else {
+    // Find new fields in match that aren't in existing headers
+    const matchKeys = Object.keys(match);
+    const newHeaders = matchKeys.filter(k => !headers.includes(k));
+
+    // Add new headers if any
+    if (newHeaders.length > 0) {
+      headers = [...headers, ...newHeaders];
+      // Update header row with new columns
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
   }
 
   // Append new row at the END (newest last)

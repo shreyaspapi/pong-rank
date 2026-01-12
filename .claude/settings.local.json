@@ -9,7 +9,8 @@
       "Bash(gh run list:*)",
       "Bash(gh run watch:*)",
       "Bash(curl:*)",
-      "Bash(xargs gh run watch:*)"
+      "Bash(xargs gh run watch:*)",
+      "Bash(gh repo edit:*)"
     ]
   }
 }
